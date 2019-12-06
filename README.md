@@ -4,7 +4,8 @@ Command-line OTP calculator, with automatic password creation/storage.
 # Apache Specific
 The Apache Software Foundation (ASF) uses the
 [Orthrus](https://github.com/gmcdonald/orthrus)
-PAM module on its machines/VMs. Orthrus implements RFC 2289 to offer One Time
+PAM module on its machines/VMs. Orthrus implements
+[RFC 2289](https://tools.ietf.org/html/rfc2289) to offer One Time
 Password (OTP) challenges, in order to `sudo`. This package emits MD5-based
 challenges (`otp-md5`), so this script only constructs MD5-based responses.
 
