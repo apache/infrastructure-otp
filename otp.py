@@ -55,7 +55,7 @@ def add_password(seed):
 def new_password():
   "Generate a password."
   # Stick to printable characters.
-  return ''.join(chr(random.randint(33,127)) for _ in range(PASSWORD_LEN)).encode()
+  return ''.join(chr(random.randint(33, 126)) for _ in range(PASSWORD_LEN)).encode()
 
 
 def otp_md5(begin, seq):
