@@ -111,28 +111,44 @@ class RunTests(argparse.Action):
     sys.exit(0)
 
 
-def main():
-  parser = argparse.ArgumentParser(description='Compute OTP strings.')
-  parser.add_argument('--test', help='Run the test suite.', nargs=0,
-                      action=RunTests)
+ALGOS = {
+  'otp-md4': None,
+  'otp-md5': otp_md5,
+  'otp-sha1': None,
+  }
 
-  # Note: this may exit, if tests are run.
-  args = parser.parse_args()
+
+def main():
+  cmd = os.path.basename(sys.argv[0])
+  if cmd in ALGOS:
+    # switch to USAGE:
+    #   $ ALGO SEQUENCE SEED
+    # omit the prompt, and use argv
+    algo = cmd
+    seq = int(sys.argv[1])
+    seed = sys.argv[2].lower().encode()
+    # ignore any other argv
+  else:
+    parser = argparse.ArgumentParser(description='Compute OTP strings.')
+    parser.add_argument('--test', help='Run the test suite.', nargs=0,
+                        action=RunTests)
+  
+    # Note: this may exit, if tests are run.
+    _ = parser.parse_args()
+
+    line = input('Challenge? ')
+    parts = line.split()
+    if len(parts) < 3:
+      print('ERROR: challenge must have: ALGO SEQUENCE SEED')
+      sys.exit(1)
+  
+    algo = parts[0]
+    seq = int(parts[1])
+    seed = parts[2].lower().encode()
+    # ignore anything else on line (eg. "ext")
 
   # Load a dictionary mapping seeds to passwords.
   pwds = load_passwords()
-  
-  line = input('Challenge? ')
-  parts = line.split()
-  if len(parts) < 3:
-    print('ERROR: challenge must have: HASH SEQUENCE SEED')
-    sys.exit(1)
-
-  algo = parts[0]
-  assert algo == 'otp-md5'
-  seq = int(parts[1])
-  seed = parts[2].lower().encode()
-  # ignore anything else on line (eg. "ext")
 
   if seed not in pwds:
     print('Creating new password for:', seed.decode())
@@ -140,7 +156,10 @@ def main():
   else:
     pwd = pwds[seed]
 
-  value = otp_md5(seed + pwd, seq)
+  processor = ALGOS.get(algo)
+  assert processor, 'Unknown/unsupported algorithm.'
+
+  value = processor(seed + pwd, seq)
   response = ' '.join(to_words(value))
   print('Response:', response)
   
