@@ -13,6 +13,7 @@ import random
 import argparse
 import hashlib
 import subprocess
+import platform
 
 OTP_PWD_FILE = '.otp'
 PASSWORD_LEN = 20
@@ -132,12 +133,15 @@ def main():
     parser = argparse.ArgumentParser(description='Compute OTP strings.')
     parser.add_argument('--test', help='Run the test suite.', nargs=0,
                         action=RunTests)
+    parser.add_argument('args', nargs=argparse.REMAINDER)
   
     # Note: this may exit, if tests are run.
-    _ = parser.parse_args()
+    parsed = parser.parse_args()
 
-    line = input('Challenge? ')
-    parts = line.split()
+    parts = parsed.args
+    if len(parts) != 3:
+        line = input('Challenge? ')
+        parts = line.split()
     if len(parts) < 3:
       print('ERROR: challenge must have: ALGO SEQUENCE SEED')
       sys.exit(1)
@@ -162,9 +166,14 @@ def main():
   value = processor(seed + pwd, seq)
   response = ' '.join(to_words(value))
   print('Response:', response)
-  
+
+  osname = platform.system()
+
   # Attempt to push this to the clipboard
-  result = subprocess.run(['xclip', '-selection', 'clipboard'], input=response.encode())
+  if osname == 'Darwin':
+    result = subprocess.run(['pbcopy', '-pboard', 'general'], input=response.encode())
+  else:
+    result = subprocess.run(['xclip', '-selection', 'clipboard'], input=response.encode())
   if result.returncode == 0:
     print('NOTE: copied to clipboard')
 
