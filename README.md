@@ -28,6 +28,22 @@ If the local host has the `xclip` program, then the reponse will be automaticall
 copied to the clipboard. If that is not present, or does not exit with success,
 then the response string can be manually copied, then pasted to the remote.
 
+## Alternative Usage
+The script examines the program name used to invoke it (`sys.argv[0]`), and
+if that name matches a defined algorithm (`otp-*`), then it will use the command
+line arguments to select the sequence and seed.
+
+For example:
+```
+[local]$ ln -s $somewhere/otp.py otp-md5
+[local]$ otp-md5 440 someseed ext
+Response: MEAT SAD JERK STUN ARGO ITS
+NOTE: copied to clipboard
+```
+
+Note that the challenge string from [remote] is directly pasted to the
+shell prompt.
+
 ## Testing
 ```
 $ ./otp.py --test
