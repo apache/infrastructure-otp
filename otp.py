@@ -139,12 +139,12 @@ def main():
     parsed = parser.parse_args()
 
     parts = parsed.args
-    if len(parts) != 3:
+    if len(parts) < 3: # we don't have enough args, prompt
         line = input('Challenge? ')
         parts = line.split()
-    if len(parts) < 3:
-      print('ERROR: challenge must have: ALGO SEQUENCE SEED')
-      sys.exit(1)
+        if len(parts) < 3: # still not enough
+          print('ERROR: challenge must have: ALGO SEQUENCE SEED ...')
+          sys.exit(1)
   
     algo = parts[0]
     seq = int(parts[1])
