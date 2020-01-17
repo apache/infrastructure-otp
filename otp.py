@@ -161,7 +161,7 @@ def main():
     pwd = pwds[seed]
 
   processor = ALGOS.get(algo)
-  assert processor, 'Unknown/unsupported algorithm.'
+  assert processor, 'Unknown/unsupported algorithm: "%s"' % (algo,)
 
   value = processor(seed + pwd, seq)
   response = ' '.join(to_words(value))
