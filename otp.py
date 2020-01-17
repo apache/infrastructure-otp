@@ -14,8 +14,10 @@ import argparse
 import hashlib
 import subprocess
 import platform
+import re
 
 OTP_PWD_FILE = '.otp'
+DEFAULT_ALGO = 'otp-md5'  # if the PWD file doesn't specify
 PASSWORD_LEN = 20
 
 
@@ -39,16 +41,27 @@ def load_passwords():
     print('ERROR: should be mode 0600:', path)
     sys.exit(1)
 
-  lines = [l.strip().split(maxsplit=1) for l in open(path).readlines()]
-  return dict((seed.encode(), pwd.encode()) for seed, pwd in lines)
+  pwds = { }
+  for l in open(path).readlines():
+    m = RE_STORAGE.match(l)
+    if m:
+      if m.group(2):
+        algo = m.group(2).lower()
+      else:
+        algo = DEFAULT_ALGO
+      pwds[m.group(3).encode()] = (m.group(4).encode(), algo)
+
+  return pwds
+
+RE_STORAGE = re.compile(r'((otp-\w+)\s+)?(\w+)\s+(.*)')
 
 
-def add_password(seed):
+def add_password(seed, algo):
   "Construct a new password for a seed, and store/append it."
   pwd = new_password()
   path = otp_path()
   fd = os.open(path, os.O_RDWR | os.O_APPEND | os.O_CREAT, mode=0o600)
-  os.write(fd, seed + b' ' + pwd + b'\n')
+  os.write(fd, algo.encode() + b' ' + seed + b' ' + pwd + b'\n')
   os.close(fd)
   return pwd
 
@@ -139,26 +152,38 @@ def main():
     parsed = parser.parse_args()
 
     parts = parsed.args
-    if len(parts) < 3: # we don't have enough args, prompt
-        line = input('Challenge? ')
-        parts = line.split()
-        if len(parts) < 3: # still not enough
-          print('ERROR: challenge must have: ALGO SEQUENCE SEED ...')
-          sys.exit(1)
-  
-    algo = parts[0]
-    seq = int(parts[1])
-    seed = parts[2].lower().encode()
-    # ignore anything else on line (eg. "ext")
+    if len(parts) < 2:  # the [ALGO] SEQUENCE SEED are not on cmdline. ask.
+      line = input('Challenge? ')
+      parts = line.split()
+
+    if len(parts) == 2:
+      # presumably: SEQUENCE SEED
+      algo = None
+      seq = int(parts[0])
+      seed = parts[1].lower().encode()
+    elif len(parts) >= 3:
+      algo = parts[0]
+      seq = int(parts[1])
+      seed = parts[2].lower().encode()
+      # ignore anything else on line (eg. "ext")
+    else:
+      print('ERROR: challenge must have: [ALGO] SEQUENCE SEED ...')
+      sys.exit(1)
 
   # Load a dictionary mapping seeds to passwords.
   pwds = load_passwords()
 
   if seed not in pwds:
     print('Creating new password for:', seed.decode())
-    pwd = add_password(seed)
+    if not algo:
+      algo = DEFAULT_ALGO
+      print('NOTE: using "%s" algorithm' % (algo,))
+    pwd = add_password(seed, algo)
   else:
-    pwd = pwds[seed]
+    old_algo = algo
+    pwd, algo = pwds[seed]
+    if old_algo and algo != old_algo:
+      print('NOTE: switched to "%s" algorithm' % (algo,))
 
   processor = ALGOS.get(algo)
   assert processor, 'Unknown/unsupported algorithm: "%s"' % (algo,)
