@@ -7,8 +7,6 @@ import sys
 import os
 import os.path
 import stat
-import getpass
-import configparser
 import random
 import argparse
 import hashlib
