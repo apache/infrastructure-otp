@@ -86,6 +86,44 @@ If new seed is seen (ie. by running `ortpasswd`), then `otp.py` will construct
 a new password and store the seed and password into `$HOME/.otp`. The password
 will be used the next time the seed is seen.
 
+## Format of `.otp`
+The `.otp` file is a list of single lines, containing the algorithm, the seed,
+and the password for that seed. For example:
+```
+otp-md5 someseed password-goes-here
+```
+Since spaces are not allowed in the algorithm or seed, these lines are easily
+parsed. Note that spaces *are* allowed in the password, so the password 
+consists of the rest of the line.
+
+## Manually editing `.otp`
+It is fine to append lines to `.otp` if you are carrying over seed/password
+values from another system (eg. SKeyCalc on older macOS machines). If you
+need to reset a password for a given seed, then remove the old line and
+go through the process to generate a new seed/password combination (and note
+that you'll also need to reset the Orthus state on the target machine).
+
+## Converting from SKeyCalc
+The SKeyCalc application on macOS was a great tool for RFC 2289 challenges;
+however, it has not been updated for the latest macOS and is no longer
+usable. `otp.py` is a suitable replacement.
+
+Instead of resetting your Orthus configuration on every machine, it is
+possible to copy the settings from SKeyCalc into your `.otp` file. This
+is a manual process using the **Keychain Access** application (it may be
+possible to use a keyboard macro utility to simplify this process).
+
+* Start **Keychain Access**
+* In the search box in the upper-right, enter `skey`; the listing
+  should show all of your stored SKeyCalc passwords
+* For each password, double-click to open the Info (or use the Get Info
+  menu item)
+* Select **Show password**
+* Copy the **Account** (which is the seed) and the password into a new
+  line in your `.otp` file (remember to include `otp-md5` at the beginning
+  of each line).
+* Repeat
+
 # Possible TODO Items
 * Use the `keyring` python package to support keyrings instead of a plaintext file
 * Handle MD4 and SHA1 challenges
