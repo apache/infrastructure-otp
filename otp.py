@@ -14,9 +14,16 @@ import subprocess
 import platform
 import re
 
+try:
+  import pyotp
+except ImportError:
+  pyotp = None
+
 OTP_PWD_FILE = '.otp'
 DEFAULT_ALGO = 'otp-md5'  # if the PWD file doesn't specify
 PASSWORD_LEN = 20
+
+ALGO_TOTP = 'totp'
 
 
 def otp_path():
@@ -43,20 +50,21 @@ def load_passwords():
   for l in open(path).readlines():
     m = RE_STORAGE.match(l)
     if m:
+      #print('MATCH:', m.groups())
       if m.group(2):
         algo = m.group(2).lower()
       else:
         algo = DEFAULT_ALGO
-      pwds[m.group(3).encode()] = (m.group(4).encode(), algo)
+      pwds[m.group(4).encode()] = (m.group(5).encode(), algo)
 
   return pwds
 
-RE_STORAGE = re.compile(r'((otp-\w+)\s+)?(\w+)\s+(.*)')
+RE_STORAGE = re.compile(r'(((otp-\w+)|totp)\s+)?(\w+)\s+(.*)')
 
 
 def add_password(seed, algo):
   "Construct a new password for a seed, and store/append it."
-  pwd = new_password()
+  pwd = new_password(algo)
   path = otp_path()
   fd = os.open(path, os.O_RDWR | os.O_APPEND | os.O_CREAT, mode=0o600)
   os.write(fd, algo.encode() + b' ' + seed + b' ' + pwd + b'\n')
@@ -64,8 +72,11 @@ def add_password(seed, algo):
   return pwd
 
 
-def new_password():
+def new_password(algo):
   "Generate a password."
+  if algo == ALGO_TOTP:
+    # Generate a proper/compatible password for most TOTP apps
+    return pyotp.random_base32().encode()
   # Stick to printable characters.
   return ''.join(chr(random.randint(33, 126)) for _ in range(PASSWORD_LEN)).encode()
 
@@ -130,6 +141,14 @@ ALGOS = {
   }
 
 
+# If the pyotp module is present, then add an algorithm for its use
+if pyotp:
+  def totp(password):
+    t = pyotp.TOTP(password)
+    return t.now()
+  ALGOS[ALGO_TOTP] = totp
+
+
 def main():
   cmd = os.path.basename(sys.argv[0])
   if cmd in ALGOS:
@@ -150,14 +169,25 @@ def main():
     parsed = parser.parse_args()
 
     parts = parsed.args
-    if len(parts) < 2:  # the [ALGO] SEQUENCE SEED are not on cmdline. ask.
+
+    # We have two possible forms:
+    #   $ CMD [ALGO] SEQUENCE SEED
+    #   $ CMD totp SEED
+
+    # If the [ALGO] SEQUENCE SEED is not on the cmdline, then ask.
+    if len(parts) < 2:
       line = input('Challenge? ')
       parts = line.split()
 
     if len(parts) == 2:
-      # presumably: SEQUENCE SEED
-      algo = None
-      seq = int(parts[0])
+      if parts[0] == ALGO_TOTP:
+        # form: totp SEED
+        algo = ALGO_TOTP
+        seq = None  # unused
+      else:
+        # form: SEQUENCE SEED
+        algo = None
+        seq = int(parts[0])
       seed = parts[1].lower().encode()
     elif len(parts) >= 3:
       algo = parts[0]
@@ -186,8 +216,11 @@ def main():
   processor = ALGOS.get(algo)
   assert processor, 'Unknown/unsupported algorithm: "%s"' % (algo,)
 
-  value = processor(seed + pwd, seq)
-  response = ' '.join(to_words(value))
+  if algo == ALGO_TOTP:
+    response = processor(pwd)
+  else:
+    value = processor(seed + pwd, seq)
+    response = ' '.join(to_words(value))
   print('Response:', response)
 
   osname = platform.system()
