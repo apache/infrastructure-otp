@@ -24,6 +24,7 @@ DEFAULT_ALGO = 'otp-md5'  # if the PWD file doesn't specify
 PASSWORD_LEN = 20
 
 ALGO_TOTP = 'totp'
+TOTP_QR_GEN = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=otpauth://totp/ASF%%20Infra?secret=%s&issuer=ASF'
 
 
 def otp_path():
@@ -163,6 +164,8 @@ def main():
     parser = argparse.ArgumentParser(description='Compute OTP strings.')
     parser.add_argument('--test', help='Run the test suite.', nargs=0,
                         action=RunTests)
+    parser.add_argument('--qr', help='Print a URL for a QR code',
+                        action='store_true')
     parser.add_argument('args', nargs=argparse.REMAINDER)
   
     # Note: this may exit, if tests are run.
@@ -217,7 +220,10 @@ def main():
   assert processor, 'Unknown/unsupported algorithm: "%s"' % (algo,)
 
   if algo == ALGO_TOTP:
-    response = processor(pwd)
+    if parsed.qr:
+      response = TOTP_QR_GEN % (pwd.decode(),)
+    else:
+      response = processor(pwd)
   else:
     value = processor(seed + pwd, seq)
     response = ' '.join(to_words(value))
